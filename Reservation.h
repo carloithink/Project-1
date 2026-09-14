@@ -14,11 +14,12 @@ private:
 
 public:
   Reservation();
-  Reservation(int resID, int stuID, string stuName, string resID, string d);
+  Reservation(int resID, int stuID, string stuName, string sourID, string d);
 
   int getReservationID() const;
   int getStudentID() const;
   string getStudentName() const;
+  string getResourceID() const;
   string getDate() const;
   void display() const;
 };
