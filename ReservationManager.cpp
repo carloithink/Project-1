@@ -1,13 +1,12 @@
-#include "../include/ReservationManager.h"
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <iomanip>
+#include "ReservationManager.h"
+
 #include <algorithm>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
 ReservationManager::ReservationManager() : nextReservationId(101) {}
-
-// File Parsing & Data Loading
 
 bool ReservationManager::loadResources(const std::string& filename) {
     std::ifstream inFile(filename);
@@ -18,20 +17,19 @@ bool ReservationManager::loadResources(const std::string& filename) {
 
     resources.clear();
     std::string line;
-    
-    // File format expected: ID,Name,Type,AvailabilityStatus
+
     while (std::getline(inFile, line)) {
-        if (line.empty()) continue;
+        if (line.empty()) {
+            continue;
+        }
 
         std::stringstream ss(line);
-        std::string id, name, type, availStr;
-
+        std::string id, name, type, availabilityToken;
         if (std::getline(ss, id, ',') &&
             std::getline(ss, name, ',') &&
             std::getline(ss, type, ',') &&
-            std::getline(ss, availStr, ',')) {
-
-            bool isAvailable = (availStr == "1" || availStr == "true" || availStr == "True");
+            std::getline(ss, availabilityToken, ',')) {
+            const bool isAvailable = availabilityToken == "1" || availabilityToken == "true" || availabilityToken == "True";
             resources.emplace_back(id, name, type, isAvailable);
         }
     }
@@ -51,31 +49,26 @@ bool ReservationManager::loadReservations(const std::string& filename) {
     std::string line;
     int maxId = 100;
 
-    // File format expected: ReservationID,StudentID,StudentName,ResourceID,Date
     while (std::getline(inFile, line)) {
-        if (line.empty()) continue;
+        if (line.empty()) {
+            continue;
+        }
 
         std::stringstream ss(line);
-        std::string resIdStr, studentId, studentName, resourceId, date;
-
-        if (std::getline(ss, resIdStr, ',') &&
+        std::string reservationIdToken, studentId, studentName, resourceId, date;
+        if (std::getline(ss, reservationIdToken, ',') &&
             std::getline(ss, studentId, ',') &&
             std::getline(ss, studentName, ',') &&
             std::getline(ss, resourceId, ',') &&
             std::getline(ss, date, ',')) {
+            const int reservationId = std::stoi(reservationIdToken);
+            activeReservations.emplace_back(reservationId, studentId, studentName, resourceId, date);
+            maxId = std::max(maxId, reservationId);
 
-            int resId = std::stoi(resIdStr);
-            activeReservations.emplace_back(resId, studentId, studentName, resourceId, date);
-
-            if (resId > maxId) {
-                maxId = resId;
-            }
-
-            // Mark resource as unavailable and increment usage counter
-            int resIndex = binarySearchResource(resourceId);
-            if (resIndex != -1) {
-                resources[resIndex].setAvailability(false);
-                resources[resIndex].incrementReservationCount();
+            const int resourceIndex = binarySearchResource(resourceId);
+            if (resourceIndex != -1) {
+                resources[resourceIndex].setAvailability(false);
+                resources[resourceIndex].incrementReservationCount();
             }
         }
     }
@@ -85,84 +78,60 @@ bool ReservationManager::loadReservations(const std::string& filename) {
     return true;
 }
 
-// ==========================================
-// Reservation Operations & Queue/Stack Mgmt
-// ==========================================
-
-void ReservationManager::createReservation(const std::string& studentId, 
-                                           const std::string& studentName, 
-                                           const std::string& resourceId, 
-                                           const std::string& date) {
-    int resIndex = binarySearchResource(resourceId);
-
-    if (resIndex == -1) {
+void ReservationManager::createReservation(const std::string& studentId,
+                                          const std::string& studentName,
+                                          const std::string& resourceId,
+                                          const std::string& date) {
+    const int resourceIndex = binarySearchResource(resourceId);
+    if (resourceIndex == -1) {
         std::cout << "[Error] Resource ID '" << resourceId << "' does not exist.\n";
         return;
     }
 
-    Resource& res = resources[resIndex];
-
-    // Case 1: Resource is available - Create immediate reservation
-    if (res.getAvailability()) {
-        int assignedId = nextReservationId++;
-        Reservation newRes(assignedId, studentId, studentName, resourceId, date);
-        
-        activeReservations.push_back(newRes); // Linked List insertion
-        res.setAvailability(false);
-        res.incrementReservationCount();
-
+    Resource& resource = resources[resourceIndex];
+    if (resource.getAvailability()) {
+        const int assignedId = nextReservationId++;
+        activeReservations.emplace_back(assignedId, studentId, studentName, resourceId, date);
+        resource.setAvailability(false);
+        resource.incrementReservationCount();
         std::cout << "[Success] Reservation Created Successfully. Reservation ID: " << assignedId << "\n";
-    } 
-    // Case 2: Resource unavailable - Push to waiting queue
-    else {
-        Reservation waitRequest(0, studentId, studentName, resourceId, date);
-        waitingLists[resourceId].push(waitRequest); // FIFO Queue push
-
-        std::cout << "[Waitlist] Resource '" << resourceId 
-                  << "' is currently unavailable. Student " << studentName 
-                  << " added to waitlist (Position: " << waitingLists[resourceId].size() << ").\n";
+        return;
     }
+
+    waitingLists[resourceId].push(Reservation(0, studentId, studentName, resourceId, date));
+    std::cout << "[Waitlist] Resource '" << resourceId
+              << "' is currently unavailable. Student " << studentName
+              << " added to waitlist (Position: " << waitingLists[resourceId].size() << ").\n";
 }
 
 bool ReservationManager::cancelReservation(int reservationId) {
-    // Traverse active reservations linked list
     for (auto it = activeReservations.begin(); it != activeReservations.end(); ++it) {
         if (it->getReservationId() == reservationId) {
-            Reservation cancelledRes = *it;
-            std::string resId = cancelledRes.getResourceId();
+            const Reservation cancelledRes = *it;
+            const std::string resourceId = cancelledRes.getResourceId();
 
-            // 1. Remove from linked list
             activeReservations.erase(it);
-
-            // 2. Push to cancellation stack (LIFO)
             cancellationHistory.push(cancelledRes);
 
-            std::cout << "[Info] Reservation " << reservationId << " cancelled and added to undo history.\n";
+            if (waitingLists.count(resourceId) > 0 && !waitingLists[resourceId].empty()) {
+                Reservation nextInLine = waitingLists[resourceId].front();
+                waitingLists[resourceId].pop();
 
-            // 3. Process waiting list queue if pending requests exist
-            if (waitingLists.count(resId) > 0 && !waitingLists[resId].empty()) {
-                Reservation nextInLine = waitingLists[resId].front();
-                waitingLists[resId].pop(); // FIFO Queue pop
+                const int assignedId = nextReservationId++;
+                activeReservations.emplace_back(assignedId, nextInLine.getStudentId(), nextInLine.getStudentName(), resourceId, nextInLine.getReservationDate());
 
-                int assignedId = nextReservationId++;
-                Reservation promotedRes(assignedId, nextInLine.getStudentId(), 
-                                       nextInLine.getStudentName(), resId, 
-                                       nextInLine.getReservationDate());
-
-                activeReservations.push_back(promotedRes);
-
-                int resIndex = binarySearchResource(resId);
-                if (resIndex != -1) {
-                    resources[resIndex].incrementReservationCount();
+                const int resourceIndex = binarySearchResource(resourceId);
+                if (resourceIndex != -1) {
+                    resources[resourceIndex].incrementReservationCount();
+                    resources[resourceIndex].setAvailability(false);
                 }
 
-                std::cout << "[Waitlist Promoted] Resource automatically assigned to waiting student: " 
-                          << promotedRes.getStudentName() << " (New Reservation ID: " << assignedId << ").\n";
+                std::cout << "[Waitlist Promoted] Resource automatically assigned to waiting student: "
+                          << nextInLine.getStudentName() << " (New Reservation ID: " << assignedId << ").\n";
             } else {
-                // No waitlist requests - mark resource as available
-                int resIndex = binarySearchResource(resId);
-                if (resIndex != -1) {
-                    resources[resIndex].setAvailability(true);
+                const int resourceIndex = binarySearchResource(resourceId);
+                if (resourceIndex != -1) {
+                    resources[resourceIndex].setAvailability(true);
                 }
             }
 
@@ -174,41 +143,31 @@ bool ReservationManager::cancelReservation(int reservationId) {
 }
 
 bool ReservationManager::undoCancellation() {
-    // Handle empty stack edge case
     if (cancellationHistory.empty()) {
         return false;
     }
 
-    // 1. Pop most recent cancellation from stack (LIFO)
-    Reservation restoredRes = cancellationHistory.top();
+    const Reservation restoredRes = cancellationHistory.top();
     cancellationHistory.pop();
+    const std::string resourceId = restoredRes.getResourceId();
 
-    std::string resId = restoredRes.getResourceId();
-    int resIndex = binarySearchResource(resId);
-
-    // 2. Re-insert restored reservation into active linked list
     activeReservations.push_back(restoredRes);
-
-    if (resIndex != -1) {
-        resources[resIndex].setAvailability(false);
+    const int resourceIndex = binarySearchResource(resourceId);
+    if (resourceIndex != -1) {
+        resources[resourceIndex].setAvailability(false);
     }
 
-    std::cout << "[Undo] Restored Reservation ID: " << restoredRes.getReservationId() 
+    std::cout << "[Undo] Restored Reservation ID: " << restoredRes.getReservationId()
               << " for Student: " << restoredRes.getStudentName() << "\n";
-
     return true;
 }
-
-// ==========================================
-// Searching & Sorting Algorithms
-// ==========================================
 
 int ReservationManager::binarySearchResource(const std::string& resourceId) {
     int low = 0;
     int high = static_cast<int>(resources.size()) - 1;
 
     while (low <= high) {
-        int mid = low + (high - low) / 2;
+        const int mid = low + (high - low) / 2;
         if (resources[mid].getId() == resourceId) {
             return mid;
         }
@@ -219,49 +178,59 @@ int ReservationManager::binarySearchResource(const std::string& resourceId) {
         }
     }
 
-    // Return -1 if not found
     return -1;
 }
 
 void ReservationManager::quickSortResources(int low, int high) {
-    if (low < high) {
-        // Partitioning process
-        std::string pivot = resources[high].getId();
-        int i = low - 1;
-
-        for (int j = low; j < high; ++j) {
-            if (resources[j].getId() <= pivot) {
-                i++;
-                std::swap(resources[i], resources[j]);
-            }
-        }
-        std::swap(resources[i + 1], resources[high]);
-        int pivotIndex = i + 1;
-
-        // Recursive quicksort calls
-        quickSortResources(low, pivotIndex - 1);
-        quickSortResources(pivotIndex + 1, high);
+    if (resources.empty()) {
+        return;
     }
+
+    if (low < 0) {
+        low = 0;
+    }
+
+    if (high < low) {
+        high = static_cast<int>(resources.size()) - 1;
+    }
+
+    if (low >= high) {
+        if (resources.size() > 1 && low == 0) {
+            high = static_cast<int>(resources.size()) - 1;
+        } else {
+            return;
+        }
+    }
+
+    const std::string pivot = resources[high].getId();
+    int i = low - 1;
+    for (int j = low; j < high; ++j) {
+        if (resources[j].getId() <= pivot) {
+            ++i;
+            std::swap(resources[i], resources[j]);
+        }
+    }
+    std::swap(resources[i + 1], resources[high]);
+    const int pivotIndex = i + 1;
+
+    quickSortResources(low, pivotIndex - 1);
+    quickSortResources(pivotIndex + 1, high);
 }
 
-// ==========================================
-// Reporting & Views
-// ==========================================
-
 void ReservationManager::displayAllResources() const {
-    std::cout << std::left << std::setw(12) << "Resource ID" 
-              << std::setw(25) << "Name" 
-              << std::setw(18) << "Type" 
-              << std::setw(15) << "Status" 
+    std::cout << std::left << std::setw(12) << "Resource ID"
+              << std::setw(25) << "Name"
+              << std::setw(18) << "Type"
+              << std::setw(15) << "Status"
               << std::setw(10) << "Res. Count" << "\n";
     std::cout << std::string(80, '-') << "\n";
 
-    for (const auto& res : resources) {
-        std::cout << std::left << std::setw(12) << res.getId()
-                  << std::setw(25) << res.getName()
-                  << std::setw(18) << res.getType()
-                  << std::setw(15) << (res.getAvailability() ? "Available" : "Reserved")
-                  << std::setw(10) << res.getReservationCount() << "\n";
+    for (const auto& resource : resources) {
+        std::cout << std::left << std::setw(12) << resource.getId()
+                  << std::setw(25) << resource.getName()
+                  << std::setw(18) << resource.getType()
+                  << std::setw(15) << (resource.getAvailability() ? "Available" : "Reserved")
+                  << std::setw(10) << resource.getReservationCount() << "\n";
     }
 }
 
@@ -271,19 +240,19 @@ void ReservationManager::displayActiveReservations() const {
         return;
     }
 
-    std::cout << std::left << std::setw(15) << "Res. ID" 
-              << std::setw(15) << "Student ID" 
-              << std::setw(22) << "Student Name" 
-              << std::setw(15) << "Resource ID" 
+    std::cout << std::left << std::setw(15) << "Res. ID"
+              << std::setw(15) << "Student ID"
+              << std::setw(22) << "Student Name"
+              << std::setw(15) << "Resource ID"
               << std::setw(15) << "Date" << "\n";
     std::cout << std::string(82, '-') << "\n";
 
-    for (const auto& res : activeReservations) {
-        std::cout << std::left << std::setw(15) << res.getReservationId()
-                  << std::setw(15) << res.getStudentId()
-                  << std::setw(22) << res.getStudentName()
-                  << std::setw(15) << res.getResourceId()
-                  << std::setw(15) << res.getReservationDate() << "\n";
+    for (const auto& reservation : activeReservations) {
+        std::cout << std::left << std::setw(15) << reservation.getReservationId()
+                  << std::setw(15) << reservation.getStudentId()
+                  << std::setw(22) << reservation.getStudentName()
+                  << std::setw(15) << reservation.getResourceId()
+                  << std::setw(15) << reservation.getReservationDate() << "\n";
     }
 }
 
@@ -311,16 +280,16 @@ void ReservationManager::generateReport() const {
     const Resource* mostReserved = nullptr;
     int maxCount = -1;
 
-    for (const auto& res : resources) {
-        if (res.getReservationCount() > maxCount) {
-            maxCount = res.getReservationCount();
-            mostReserved = &res;
+    for (const auto& resource : resources) {
+        if (resource.getReservationCount() > maxCount) {
+            maxCount = resource.getReservationCount();
+            mostReserved = &resource;
         }
     }
 
     if (mostReserved && maxCount > 0) {
-        std::cout << " Most Frequently Reserved: " << mostReserved->getName() 
-                  << " (ID: " << mostReserved->getId() << ") - " 
+        std::cout << " Most Frequently Reserved: " << mostReserved->getName()
+                  << " (ID: " << mostReserved->getId() << ") - "
                   << maxCount << " total reservation(s)\n";
     } else {
         std::cout << " No reservation utilization recorded yet.\n";
