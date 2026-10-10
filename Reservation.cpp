@@ -1,43 +1,42 @@
-C++
-#include "../include/Reservation.h"
-#include <iostream>
+#include "include/Reservation.h"
+
 #include <iomanip>
+#include <iostream>
 
-// Default Constructor
-Reservation::Reservation() 
-    : reservationID(0), studentID(""), studentName(""), resourceID(""), date("") {}
+Reservation::Reservation()
+    : reservationId(0), studentId(""), studentName(""), resourceId(""), date("") {}
 
-// Parameterized Constructor
-Reservation::Reservation(int resID, std::string stuID, std::string stuName, std::string resID_Param, std::string d)
-    : reservationID(resID), studentID(stuID), studentName(stuName), resourceID(resID_Param), date(d) {}
+Reservation::Reservation(int resId, std::string stuId, std::string stuName,
+                       std::string resIdValue, std::string reservationDate)
+    : reservationId(resId), studentId(std::move(stuId)), studentName(std::move(stuName)),
+      resourceId(std::move(resIdValue)), date(std::move(reservationDate)) {}
 
-// Getters
-int Reservation::getReservationID() const {
-    return reservationID;
+int Reservation::getReservationId() const {
+    return reservationId;
 }
 
-std::string Reservation::getStudentID() const {
-    return studentID;
+std::string Reservation::getStudentId() const {
+    return studentId;
 }
 
 std::string Reservation::getStudentName() const {
     return studentName;
 }
 
-std::string Reservation::getResourceID() const {
-    return resourceID;
+std::string Reservation::getResourceId() const {
+    return resourceId;
 }
 
-std::string Reservation::getDate() const {
+std::string Reservation::getReservationDate() const {
     return date;
 }
 
-// Display method
 void Reservation::display() const {
-    std::cout << std::left 
-              << std::setw(15) << reservationID
-              << std::setw(15) << studentID
+    std::cout << std::left
+              << std::setw(15) << reservationId
+              << std::setw(15) << studentId
               << std::setw(22) << studentName
-              << std::setw(15) << resourceID
+              << std::setw(15) << resourceId
               << std::setw(15) << date << "\n";
 }
+
