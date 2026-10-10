@@ -1,42 +1,54 @@
-#include "../include/Resource.h"
-#include <iostream>
+#include "include/Resource.h"
+
 #include <iomanip>
+#include <iostream>
 
-// Default Constructor
-Resource::Resource() 
-    : resourceID(""), resourceName(""), category(""), status("Available") {}
+Resource::Resource()
+    : id(""), name(""), type(""), available(true), reservationCount(0) {}
 
-// Parameterized Constructor
-Resource::Resource(std::string ID, std::string name, std::string cat, std::string stat)
-    : resourceID(ID), resourceName(name), category(cat), status(stat) {}
+Resource::Resource(std::string resourceId, std::string resourceName, std::string resourceType, bool isAvailable)
+    : id(std::move(resourceId)), name(std::move(resourceName)), type(std::move(resourceType)), available(isAvailable), reservationCount(0) {}
 
-// Getters
-std::string Resource::getResourceID() const {
-    return resourceID;
+std::string Resource::getId() const {
+    return id;
 }
 
-std::string Resource::getResourceName() const {
-    return resourceName;
+std::string Resource::getName() const {
+    return name;
 }
 
-std::string Resource::getCategory() const {
-    return category;
+std::string Resource::getType() const {
+    return type;
 }
 
-std::string Resource::getStatus() const {
-    return status;
+bool Resource::getAvailability() const {
+    return available;
 }
 
-// Setter
+int Resource::getReservationCount() const {
+    return reservationCount;
+}
+
+void Resource::setAvailability(bool isAvailable) {
+    available = isAvailable;
+}
+
+void Resource::incrementReservationCount() {
+    ++reservationCount;
+}
+
 void Resource::setStatus(const std::string& newStatus) {
-    status = newStatus;
+    if (newStatus == "Available" || newStatus == "available" || newStatus == "1") {
+        available = true;
+    } else if (newStatus == "Reserved" || newStatus == "reserved" || newStatus == "Unavailable" || newStatus == "unavailable" || newStatus == "0") {
+        available = false;
+    }
 }
 
-// Formatted Output Display
 void Resource::display() const {
-    std::cout << std::left 
-              << std::setw(12) << resourceID
-              << std::setw(25) << resourceName
-              << std::setw(18) << category
-              << std::setw(15) << status << "\n";
+    std::cout << std::left
+              << std::setw(12) << id
+              << std::setw(25) << name
+              << std::setw(18) << type
+              << std::setw(15) << (available ? "Available" : "Reserved") << "\n";
 }
