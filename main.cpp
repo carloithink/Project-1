@@ -2,7 +2,10 @@
 #include <string>
 #include <limits>
 #include <iomanip>
-#include "../include/ReservationManager.h"
+#include "ReservationManager.h"
+#include "Reservation.cpp"
+#include "Resource.cpp"
+#include "ReservationManager.cpp"
 using namespace std;
 
 // Helper functions for input validation 
@@ -189,3 +192,4 @@ string getNonEmptyString(const string& prompt) {
         cout << "[Invalid Input] Field cannot be empty. Please try again.\n";
     }
 }
+            
