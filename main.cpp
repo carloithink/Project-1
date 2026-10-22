@@ -3,9 +3,7 @@
 #include <limits>
 #include <iomanip>
 #include "ReservationManager.h"
-#include "Reservation.cpp"
-#include "Resource.cpp"
-#include "ReservationManager.cpp"
+
 using namespace std;
 
 // Helper functions for input validation 
@@ -21,17 +19,10 @@ int main() {
     cout << " Initializing Campus Resource Reservation System...\n";
     cout << "==================================================\n";
 
-    if (!manager.loadResources("data/resources.txt")) {
-        cout << "[Warning] Could not load resources from 'data/resources.txt'. Starting with empty inventory.\n";
-    } else {
-        cout << "[Success] Resources loaded successfully.\n";
-    }
+    // Load files using exact header method names
+    manager.loadResourcesFromFile("resources.txt");
+    manager.loadReservationsFromFile("reservations.txt");
 
-    if (!manager.loadReservations("data/reservations.txt")) {
-        cout << "[Warning] Could not load reservations from 'data/reservations.txt'. Starting with no active reservations.\n";
-    } else {
-        cout << "[Success] Active reservations loaded successfully.\n";
-    }
     bool running = true;
 
     while (running) {
@@ -48,12 +39,14 @@ int main() {
             }
             case 2: { // Create Reservation
                 cout << "=== Create Reservation ===\n";
-                string studentId = getNonEmptyString("Enter Student ID: ");
+                int studentId = getValidIntChoice(1, 999999);
                 string studentName = getNonEmptyString("Enter Student Name: ");
-                string resourceId = getNonEmptyString("Enter Resource ID: ");
-                string date = getNonEmptyString("Enter Date (YYYY-MM-DD): ");
+                string resourceId = getNonEmptyString("Enter Resource ID (e.g., R101): ");
+                string date = getNonEmptyString("Enter Date (MM/DD/YYYY): ");
 
-                manager.createReservation(studentId, studentName, resourceId, date);
+                // Generate a pseudo-random or sequential reservation ID for demo
+                int resId = 321; // or derived uniquely
+                manager.makeReservation(resId, studentId, studentName, resourceId, date);
                 break;
             }
             case 3: { // Cancel Reservation
@@ -61,62 +54,41 @@ int main() {
                 cout << "Enter Reservation ID to cancel: ";
                 int resId = getValidIntChoice(1, 100000);
 
-                if (manager.cancelReservation(resId)) {
-                    cout << "[Success] Reservation " << resId << " cancelled and pushed to history stack.\n";
-                } else {
-                    cout << "[Error] Reservation ID " << resId << " not found.\n";
-                }
+                manager.cancelReservation(resId);
                 break;
-            }case 4: { // View Waiting Lists
+            }
+            case 4: { // View Waiting Lists
                 cout << "=== Waiting Lists ===\n";
-                manager.generateReport(); // Or dedicated waiting list viewer call
+                manager.showWaitlist();
                 break;
             }
             case 5: { // Undo Cancellation
                 cout << "=== Undo Cancellation ===\n";
-                if (manager.undoCancellation()) {
-                    cout << "[Success] Most recent cancellation restored successfully.\n";
-                } else {
-                    cout << "[Error] Cancellation history stack is empty. Nothing to undo.\n";
-                }
+                manager.undoCancelReservation();
                 break;
             }
             case 6: { // Search Reservations
                 cout << "=== Search Reservations ===\n";
-                string searchTarget = getNonEmptyString("Enter Student ID or Reservation ID to search: ");
+                string searchTarget = getNonEmptyString("Enter Student ID to search reservations: ");
                 
-                // Example check for numeric reservation ID vs Student ID
                 try {
-                    int resId = stoi(searchTarget);
-                    // Search by reservation ID logic
-                    cout << "Searching active reservations for Reservation ID: " << resId << "...\n";
+                    int stuId = stoi(searchTarget);
+                    manager.findReservationsbyStudent(stuId);
                 } catch (const invalid_argument&) {
-                    // Search by student ID logic
-                    cout << "Searching active reservations for Student ID: " << searchTarget << "...\n";
+                    cout << "[Error] Please enter a valid numeric Student ID.\n";
                 }
-                manager.displayActiveReservations();
                 break;
             }
             case 7: { // Sort Resources
                 cout << "=== Sort Resources ===\n";
-                cout << "1. Sort by Resource ID (Quick Sort)\n";
-                cout << "2. Sort by Reservation Frequency\n";
-                cout << "Select Sort Option: ";
-                int sortChoice = getValidIntChoice(1, 2);
-
-                if (sortChoice == 1) {
-                    // Internal call to quicksort algorithm
-                    manager.quickSortResources(0, 0); // High index passed within manager
-                    cout << "[Success] Resources sorted by Resource ID.\n";
-                } else {
-                    cout << "[Info] Feature sorting by frequency coming soon.\n";
-                }
+                cout << "Sorting resources alphabetically by name using Quick Sort...\n";
+                manager.sortResourcesbyName();
                 manager.displayAllResources();
                 break;
             }
             case 8: { // Generate Report
                 cout << "=== System Report & Statistics ===\n";
-                manager.generateReport();
+                manager.generateReports();
                 break;
             }
             case 9: { // Exit
@@ -127,7 +99,7 @@ int main() {
             default:
                 cout << "[Error] Invalid option selected.\n";
                 break;
-        }
+            }
 
         cout << "--------------------------------------------------\n";
         if (running) {
@@ -140,7 +112,7 @@ int main() {
     return 0;
 }
 
-//Displays the main UI menu.//
+// Displays the main UI menu.
 void displayMenu() {
     cout << "\n===== Campus Resource Reservation System =====\n";
     cout << " 1. View Resources\n";
@@ -156,13 +128,13 @@ void displayMenu() {
     cout << "Enter Choice (1-9): ";
 }
 
-// Clears input stream errors and flushes residual buffer input.//
+// Clears input stream errors and flushes residual buffer input.
 void clearInputBuffer() {
     cin.clear();
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 }
 
-//Validates integer inputs against minimum and maximum boundaries.//
+// Validates integer inputs against minimum and maximum boundaries.
 int getValidIntChoice(int min, int max) {
     int input;
     while (true) {
@@ -171,25 +143,24 @@ int getValidIntChoice(int min, int max) {
                 clearInputBuffer(); // Clear trailing newline
                 return input;
             }
-        }
+     }
         cout << "[Invalid Input] Please enter an integer between " 
                   << min << " and " << max << ": ";
         clearInputBuffer();
     }
 }
 
-//Ensures user does not provide empty string or whitespace-only inputs.//
+// Ensures user does not provide empty string or whitespace-only inputs.
 string getNonEmptyString(const string& prompt) {
     string input;
     while (true) {
         cout << prompt;
-        getline(std::cin, input);
+        getline(cin, input);
         
-        // Trim leading and trailing spaces if necessary
         if (!input.empty() && input.find_first_not_of(" \t\n\r") != string::npos) {
             return input;
         }
         cout << "[Invalid Input] Field cannot be empty. Please try again.\n";
     }
 }
-            
+
