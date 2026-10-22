@@ -1,54 +1,39 @@
-#include "include/Resource.h"
-
+#include "Resource.h"
 #include <iomanip>
 #include <iostream>
 
-Resource::Resource()
-    : id(""), name(""), type(""), available(true), reservationCount(0) {}
+using namespace std;
 
-Resource::Resource(std::string resourceId, std::string resourceName, std::string resourceType, bool isAvailable)
-    : id(std::move(resourceId)), name(std::move(resourceName)), type(std::move(resourceType)), available(isAvailable), reservationCount(0) {}
+Resource::Resource() 
+    : resourceID(""), resourceName(""), category(""), status("Available") {}
 
-std::string Resource::getId() const {
-    return id;
+Resource::Resource(string ID, string name, string cat, string stat) 
+    : resourceID(ID), resourceName(name), category(cat), status(stat) {}
+
+string Resource::getResourceID() const {
+    return resourceID;
 }
 
-std::string Resource::getName() const {
-    return name;
+string Resource::getResourceName() const {
+    return resourceName;
 }
 
-std::string Resource::getType() const {
-    return type;
+string Resource::getCategory() const {
+    return category;
 }
 
-bool Resource::getAvailability() const {
-    return available;
+string Resource::getStatus() const {
+    return status;
 }
 
-int Resource::getReservationCount() const {
-    return reservationCount;
-}
-
-void Resource::setAvailability(bool isAvailable) {
-    available = isAvailable;
-}
-
-void Resource::incrementReservationCount() {
-    ++reservationCount;
-}
-
-void Resource::setStatus(const std::string& newStatus) {
-    if (newStatus == "Available" || newStatus == "available" || newStatus == "1") {
-        available = true;
-    } else if (newStatus == "Reserved" || newStatus == "reserved" || newStatus == "Unavailable" || newStatus == "unavailable" || newStatus == "0") {
-        available = false;
-    }
+void Resource::setStatus(const string& newStatus) {
+    status = newStatus;
 }
 
 void Resource::display() const {
-    std::cout << std::left
-              << std::setw(12) << id
-              << std::setw(25) << name
-              << std::setw(18) << type
-              << std::setw(15) << (available ? "Available" : "Reserved") << "\n";
+    cout << left
+         << setw(12) << resourceID
+         << setw(25) << resourceName
+         << setw(22) << category
+         << setw(15) << status << "\n";
 }
