@@ -1,42 +1,39 @@
-#include "include/Reservation.h"
-
+#include "Reservation.h"
 #include <iomanip>
 #include <iostream>
 
 Reservation::Reservation()
-    : reservationId(0), studentId(""), studentName(""), resourceId(""), date("") {}
+    : reservationID(0), studentID(0), studentName(""), resourceID(""), date("") {}
 
-Reservation::Reservation(int resId, std::string stuId, std::string stuName,
-                       std::string resIdValue, std::string reservationDate)
-    : reservationId(resId), studentId(std::move(stuId)), studentName(std::move(stuName)),
-      resourceId(std::move(resIdValue)), date(std::move(reservationDate)) {}
+Reservation::Reservation(int resID, int stuID, string stuName, string sourID, string d)
+    : reservationID(resID), studentID(stuID), studentName(stuName), resourceID(sourID), date(d) {}
 
-int Reservation::getReservationId() const {
-    return reservationId;
+int Reservation::getReservationID() const {
+    return reservationID;
 }
 
-std::string Reservation::getStudentId() const {
-    return studentId;
+int Reservation::getStudentID() const {
+    return studentID;
 }
 
-std::string Reservation::getStudentName() const {
+string Reservation::getStudentName() const {
     return studentName;
 }
 
-std::string Reservation::getResourceId() const {
-    return resourceId;
+string Reservation::getResourceID() const {
+    return resourceID;
 }
 
-std::string Reservation::getReservationDate() const {
+string Reservation::getDate() const {
     return date;
 }
 
 void Reservation::display() const {
-    std::cout << std::left
-              << std::setw(15) << reservationId
-              << std::setw(15) << studentId
-              << std::setw(22) << studentName
-              << std::setw(15) << resourceId
-              << std::setw(15) << date << "\n";
+    cout << left
+         << setw(15) << reservationID
+         << setw(15) << studentID
+         << setw(22) << studentName
+         << setw(15) << resourceID
+         << setw(15) << date << "\n";
 }
 
